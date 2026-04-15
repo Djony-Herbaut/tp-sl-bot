@@ -92,7 +92,7 @@ from config import (
 
 # SOL price en USD utilisé pour convertir les gas fees
 # On utilise une estimation conservative (ajuster si SOL change drastiquement)
-SOL_PRICE_USD_ESTIMATE = 150.0
+SOL_PRICE_USD_ESTIMATE = 70
 
 
 def _compute_gas_cost_pct(sol_spent: float, sol_price_usd: float = SOL_PRICE_USD_ESTIMATE) -> float:
