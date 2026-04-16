@@ -11,10 +11,16 @@ import httpx
 import time
 from config import HELIUS_API_URL, HELIUS_API_KEY, PUMP_FUN_PROGRAM_ID
 
-SOL_PRICE_USD = 70  # mis à jour ou récupérer dynamiquement
-
 HEADERS = {"Content-Type": "application/json"}
 
+def get_sol_price():
+    url = "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
+    try:
+        with httpx.Client(timeout=5) as client:
+            resp = client.get(url)
+            return resp.json()["solana"]["usd"]
+    except:
+        return 70  # fallback
 
 def get_token_swaps_helius(token_mint: str, from_ts: int, to_ts: int) -> list[dict]:
     """
@@ -67,7 +73,7 @@ def get_token_swaps_helius(token_mint: str, from_ts: int, to_ts: int) -> list[di
                 )
 
                 if sol_out > 0 and token_in > 0:
-                    price = (sol_out / token_in) * SOL_PRICE_USD
+                    price = (sol_out / token_in) * get_sol_price()
                     all_swaps.append({
                         "unixTime": ts,
                         "price_usd": price,
