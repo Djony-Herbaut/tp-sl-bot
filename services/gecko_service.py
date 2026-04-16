@@ -137,73 +137,37 @@ def get_price_history(token_mint: str, from_ts: int, to_ts: int) -> list[dict]:
     except Exception:
         return None
 
-
 def get_price_at_entry(token_mint: str, timestamp: int) -> float | None:
-    """
-    Retourne l'historique OHLCV complet entre from_ts et to_ts.
-
-    Pagine automatiquement si la fenêtre dépasse 1000 bougies.
-    Respecte la limite de 30 req/min via time.sleep(0.2).
-
-    Args:
-        token_mint: Adresse mint du token
-        from_ts:    Timestamp unix de début
-        to_ts:      Timestamp unix de fin
-
-    Returns:
-        Liste de dicts { unixTime, o, h, l, c, v } triés chronologiquement
-    """
     pool = _get_pool_address(token_mint)
+
     if not pool:
         from services.onchain_price_service import get_token_swaps_helius, get_entry_price_from_swaps
         swaps = get_token_swaps_helius(token_mint, timestamp - 60, timestamp + 60)
         return get_entry_price_from_swaps(swaps, timestamp)
 
     timeframe, aggregate = TIMEFRAME_MAP.get(PRICE_INTERVAL, ("minute", 1))
-    all_candles = []
-    before_ts   = to_ts
+    before_ts = timestamp + 120
 
-    with httpx.Client(timeout=20) as client:
-        while True:
-            url = (
-                f"{GECKOTERMINAL_API_URL}/networks/solana/pools/{pool}"
-                f"/ohlcv/{timeframe}"
-                f"?aggregate={aggregate}"
-                f"&before_timestamp={before_ts}"
-                f"&limit=1000"
-                f"&currency=usd"
-            )
+    url = (
+        f"{GECKOTERMINAL_API_URL}/networks/solana/pools/{pool}"
+        f"/ohlcv/{timeframe}"
+        f"?aggregate={aggregate}"
+        f"&before_timestamp={before_ts}"
+        f"&limit=5"
+        f"&currency=usd"
+    )
 
-            try:
-                resp = client.get(url, headers=HEADERS)
-                resp.raise_for_status()
-                candles = resp.json()["data"]["attributes"]["ohlcv_list"]
-            except Exception:
-                break
+    try:
+        with httpx.Client(timeout=15) as client:
+            resp = client.get(url, headers=HEADERS)
+            resp.raise_for_status()
+            candles = resp.json()["data"]["attributes"]["ohlcv_list"]
 
-            if not candles:
-                break
+        if not candles:
+            return None
 
-            in_range = [c for c in candles if c[0] >= from_ts]
-            all_candles.extend(in_range)
+        closest = min(candles, key=lambda x: abs(x[0] - timestamp))
+        return float(closest[4])
 
-            if len(in_range) < len(candles):
-                break
-
-            before_ts = candles[-1][0] - 1
-            time.sleep(0.2)
-
-    seen   = set()
-    result = []
-    for c in sorted(all_candles, key=lambda x: x[0]):
-        ts = c[0]
-        if ts not in seen:
-            seen.add(ts)
-            result.append({
-                "unixTime": ts,
-                "o": c[1], "h": c[2],
-                "l": c[3], "c": c[4],
-                "v": c[5],
-            })
-
-    return result
+    except Exception:
+        return None

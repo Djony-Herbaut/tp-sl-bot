@@ -11,7 +11,7 @@ import httpx
 import time
 from config import HELIUS_API_URL, HELIUS_API_KEY, PUMP_FUN_PROGRAM_ID
 
-SOL_PRICE_USD = 70  # Mettre à jour ou récupérer dynamiquement
+SOL_PRICE_USD = 70  # mis à jour ou récupérer dynamiquement
 
 HEADERS = {"Content-Type": "application/json"}
 
