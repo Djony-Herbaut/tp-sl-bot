@@ -47,7 +47,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "`/analyze 8fj3kABC\\.\\.\\.xyz 500`\n\n"
         "Tape /help pour l'aide complète\\."
     )
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -71,7 +71,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "*Temps d'analyse :* 1 à 3 minutes\n"
         "*Minimum requis :* 5 trades Pump\\.fun sur 30 jours"
     )
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
 async def cmd_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -103,13 +103,13 @@ async def cmd_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     loading_msg = await update.message.reply_text(
         format_loading(wallet),
-        parse_mode=ParseMode.MARKDOWN_V2,
+        parse_mode=ParseMode.HTML,
     )
 
     try:
         loop   = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, _run_analysis, wallet, amount_usd)
-        await loading_msg.edit_text(result, parse_mode=ParseMode.MARKDOWN_V2)
+        await loading_msg.edit_text(result, parse_mode=ParseMode.HTML)
 
     except InsufficientDataError as e:
         await loading_msg.edit_text(format_error(str(e)))
