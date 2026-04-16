@@ -89,7 +89,7 @@ def _get_pool_address(token_mint: str) -> str | None:
         return None
 
 
-def get_price_at_entry(token_mint: str, timestamp: int) -> float | None:
+def get_price_history(token_mint: str, from_ts: int, to_ts: int) -> list[dict]:
     """
     Retourne le prix de clôture du token au moment de l'entrée du wallet cible.
 
@@ -105,8 +105,12 @@ def get_price_at_entry(token_mint: str, timestamp: int) -> float | None:
         Prix en USD ou None si indisponible
     """
     pool = _get_pool_address(token_mint)
+
     if not pool:
-        return None
+        # Fallback : reconstruire depuis les swaps on-chain Helius
+        from services.onchain_price_service import get_token_swaps_helius, swaps_to_ohlcv
+        swaps = get_token_swaps_helius(token_mint, from_ts, to_ts)
+        return swaps_to_ohlcv(swaps, interval_seconds=1)
 
     timeframe, aggregate = TIMEFRAME_MAP.get(PRICE_INTERVAL, ("minute", 1))
     url = (
@@ -134,7 +138,7 @@ def get_price_at_entry(token_mint: str, timestamp: int) -> float | None:
         return None
 
 
-def get_price_history(token_mint: str, from_ts: int, to_ts: int) -> list[dict]:
+def get_price_at_entry(token_mint: str, timestamp: int) -> float | None:
     """
     Retourne l'historique OHLCV complet entre from_ts et to_ts.
 
@@ -151,7 +155,9 @@ def get_price_history(token_mint: str, from_ts: int, to_ts: int) -> list[dict]:
     """
     pool = _get_pool_address(token_mint)
     if not pool:
-        return []
+        from services.onchain_price_service import get_token_swaps_helius, get_entry_price_from_swaps
+        swaps = get_token_swaps_helius(token_mint, timestamp - 60, timestamp + 60)
+        return get_entry_price_from_swaps(swaps, timestamp)
 
     timeframe, aggregate = TIMEFRAME_MAP.get(PRICE_INTERVAL, ("minute", 1))
     all_candles = []
