@@ -133,7 +133,12 @@ def compute_trade_metrics(trade: dict) -> dict | None:
     post_entry_candles = [c for c in candles if c["unixTime"] >= effective_entry_ts]
 
     if len(post_entry_candles) < 2:
-        return None
+        return {
+            **trade,
+            "gain_max_pct": -100,
+            "drawdown_pct": 100,
+            "time_to_ath_secs": 999999,
+        }
 
     highs = [c["h"] for c in post_entry_candles if c.get("h") and c["h"] > 0]
     lows  = [c["l"] for c in post_entry_candles if c.get("l") and c["l"] > 0]
@@ -147,9 +152,7 @@ def compute_trade_metrics(trade: dict) -> dict | None:
     ath_ts    = times[ath_idx] if ath_idx < len(times) else effective_entry_ts
     min_price = min(lows)
 
-    # Vérification de cohérence : l'ATH doit être au-dessus du prix d'entrée
-    # (ou au moins proche — on tolère jusqu'à -5% pour les mini-dips initiaux)
-    if ath_price < effective_entry_price * 0.95:
+    if ath_price <= 0:
         return None
 
     # --- Gains et drawdown BRUTS ---
@@ -211,8 +214,8 @@ def analyze_all_trades(trades: list[dict]) -> dict:
     if not metrics:
         return {}
 
-    gains     = [m["gain_max_pct"] for m in metrics]
-    drawdowns = [m["drawdown_pct"]  for m in metrics]
+    gains = [min(m["gain_max_pct"], 500) for m in metrics]
+    drawdowns = [m["drawdown_pct"] for m in metrics]
     times_ath = [m["time_to_ath_secs"] for m in metrics]
     gas_costs = [m["gas_cost_pct"]  for m in metrics]
 
@@ -240,6 +243,15 @@ def analyze_all_trades(trades: list[dict]) -> dict:
         "avg_gas_pct":      round(statistics.mean(gas_costs), 1),
         "avg_entry_slip":   round(statistics.mean([m["entry_slippage_pct"] for m in metrics]), 1),
     }
+    skipped = 0
+
+    for trade in trades:
+        result = compute_trade_metrics(trade)
+        if result:
+            metrics.append(result)
+        else:
+            skipped += 1
+    print(f"Skipped trades: {skipped}/{total}")
 
     return {
         "metrics":   metrics,
